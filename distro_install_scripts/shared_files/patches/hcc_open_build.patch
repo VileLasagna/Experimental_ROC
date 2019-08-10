@@ -25,3 +25,29 @@
  else (OFFICIAL_RELEASE_BUILD)
    set(HCC_ROCR_DEP "")
  endif (OFFICIAL_RELEASE_BUILD)
+
+
+--- a/lib/hcc-config.cmake.in
++++ b/lib/hcc-config.cmake.in
+@@ -14,13 +14,15 @@
+     /opt/rocm/lib
+ )
+
+-add_library(hsa-runtime64 SHARED IMPORTED GLOBAL)
++if(NOT TARGET hsa-runtime64)
++    add_library(hsa-runtime64 SHARED IMPORTED GLOBAL)
+
+-set_target_properties(hsa-runtime64 PROPERTIES
+-  INTERFACE_INCLUDE_DIRECTORIES "${HSA_HEADER}"
+-  IMPORTED_LOCATION "${HSA_LIBRARY}"
+-  INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${HSA_HEADER}"
+-)
++    set_target_properties(hsa-runtime64 PROPERTIES
++      INTERFACE_INCLUDE_DIRECTORIES "${HSA_HEADER}"
++      IMPORTED_LOCATION "${HSA_LIBRARY}"
++      INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${HSA_HEADER}"
++    )
++endif()
+
+ include( "${CMAKE_CURRENT_LIST_DIR}/ImportedTargets.cmake" )
+ include( "${CMAKE_CURRENT_LIST_DIR}/hcc-targets.cmake" )

@@ -55,8 +55,8 @@ if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/ROCR-Runtime ]; the
     git clone -b ${ROCM_VERSION_BRANCH} https://github.com/RadeonOpenCompute/ROCR-Runtime.git
     cd ${SOURCE_DIR}/ROCR-Runtime/src
     git checkout ${ROCM_ROCR_CHECKOUT}
-    cd ${SOURCE_DIR}/ROCR-Runtime/
-    patch -p1 < ${BASE_DIR}/patches/01_02_rocr.patch
+    # cd ${SOURCE_DIR}/ROCR-Runtime/
+    # patch -p1 < ${BASE_DIR}/patches/01_02_rocr.patch
     cd ${SOURCE_DIR}/ROCR-Runtime/src
 else
     echo "Skipping download of ROCr, since ${SOURCE_DIR}/ROCR-Runtime already exists."

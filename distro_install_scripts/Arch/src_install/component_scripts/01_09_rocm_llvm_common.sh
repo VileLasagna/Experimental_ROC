@@ -44,9 +44,6 @@ if [ $ROCM_SAVE_SOURCE = true ]; then
     if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/llvm_amd-common ]; then
         rm -rf ${SOURCE_DIR}/llvm_amd-common
     fi
-    if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/ROCm-Device-Libs ]; then
-        rm -rf ${SOURCE_DIR}/ROCm-Device-Libs
-    fi
     mkdir -p ${SOURCE_DIR}
 else
     SOURCE_DIR=`mktemp -d`
@@ -56,29 +53,21 @@ cd ${SOURCE_DIR}
 # Download ROCm LLVM
 if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/llvm_amd-common ]; then
     cd ${SOURCE_DIR}
-    git clone -b ${ROCM_VERSION_BRANCH} https://github.com/RadeonOpenCompute/llvm.git llvm_amd-common
+    git clone -b ${ROCM_HCC_VERSION_BRANCH} https://github.com/RadeonOpenCompute/llvm.git llvm_amd-common
     cd ${SOURCE_DIR}/llvm_amd-common
     git checkout ${ROCM_DEVICE_LIBS_CHECKOUT}
     cd ${SOURCE_DIR}/llvm_amd-common/tools
-    git clone -b ${ROCM_VERSION_BRANCH} https://github.com/RadeonOpenCompute/lld.git lld
+    git clone -b ${ROCM_HCC_VERSION_BRANCH} https://github.com/RadeonOpenCompute/lld.git lld
     cd ${SOURCE_DIR}/llvm_amd-common/tools/lld
     git checkout ${ROCM_DEVICE_LIBS_CHECKOUT}
     cd ${SOURCE_DIR}/llvm_amd-common/tools
     git clone -b ${ROCM_VERSION_BRANCH} https://github.com/RadeonOpenCompute/clang.git clang
     cd ${SOURCE_DIR}/llvm_amd-common/tools/clang
-    git checkout ${ROCM_DEVICE_LIBS_CHECKOUT}
+    git checkout tags/${ROCM_VERSION_TAG}
 else
     echo "Skipping download of ROCm LLVM for device libs, since ${SOURCE_DIR}/llvm_amd-common already exists."
 fi
 
-if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/ROCm-Device-Libs ]; then
-    cd ${SOURCE_DIR}
-    git clone -b ${ROCM_VERSION_BRANCH} https://github.com/RadeonOpenCompute/ROCm-Device-Libs.git
-    cd ${SOURCE_DIR}/ROCm-Device-Libs/
-    git checkout ${ROCM_DEVICE_LIBS_CHECKOUT}
-else
-    echo "Skipping download of ROCm Device Libs, since ${SOURCE_DIR}/ROCm-Device-Libs already exists."
-fi
 
 if [ ${ROCM_FORCE_GET_CODE} = true ]; then
     echo "Finished downloading LLVM and ROCm device libs. Exiting."
@@ -97,7 +86,7 @@ if [ ${ROCM_FORCE_PACKAGE} = false ] || [ ! -f ${ROCM_TEMP_LLVM_DIR}/bin/clang ]
     cd ${SOURCE_DIR}/llvm_amd-common
     mkdir -p build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_TEMP_LLVM_DIR} -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86" -DLLVM_USE_LINKER=gold -DCLANG_ANALYZER_ENABLE_Z3_SOLVER=OFF -DLLVM_ENABLE_ASSERTIONS=No ..
+    cmake -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_TEMP_LLVM_DIR} -DLLVM_TARGETS_TO_BUILD="AMDGPU;X86;NVPTX" -DLLVM_USE_LINKER=gold -DCLANG_ANALYZER_ENABLE_Z3_SOLVER=OFF -DLLVM_ENABLE_ASSERTIONS=No ..
 
     # Building LLVM can take a large amount of memory, and it will fail if you do
     # not have enough memory available per thread. As such, this # logic limits
@@ -108,6 +97,8 @@ if [ ${ROCM_FORCE_PACKAGE} = false ] || [ ! -f ${ROCM_TEMP_LLVM_DIR}/bin/clang ]
 
     # Give about 4 GB to each building thread
     MAX_THREADS=`echo $(( ${MEM_AVAIL} / $(( 1024 * 1024 * 4 )) ))`
+    # Give about 4 GB to each building thread
+    MAX_THREADS=`echo $(( ${MEM_AVAIL} / $(( 1024 * 1024 * 2 )) ))`
     if [ ${MAX_THREADS} -lt ${AVAIL_THREADS} ]; then
         NUM_BUILD_THREADS=${MAX_THREADS}
     else
@@ -118,19 +109,10 @@ if [ ${ROCM_FORCE_PACKAGE} = false ] || [ ! -f ${ROCM_TEMP_LLVM_DIR}/bin/clang ]
     fi
 
     make -j ${NUM_BUILD_THREADS}
-    ${ROCM_SUDO_COMMAND} make install
 fi
 
-# Build ROCm device libs
-cd ${SOURCE_DIR}/ROCm-Device-Libs/
-mkdir -p build
-cd build
-export LLVM_BUILD=${ROCM_TEMP_LLVM_DIR}
-CC=$LLVM_BUILD/bin/clang cmake -DLLVM_DIR=$LLVM_BUILD -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB ..
-make -j `nproc`
-
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then
-    echo "Finished building LLVM and ROCm device libs. Exiting."
+    echo "Finished building LLVM/Clang/LLD. Exiting."
     exit 0
 fi
 
@@ -153,7 +135,6 @@ else
     ${ROCM_SUDO_COMMAND} make install
 fi
 
-unset LLVM_BUILD
 
 if [ $ROCM_SAVE_SOURCE = false ]; then
     rm -rf ${SOURCE_DIR}

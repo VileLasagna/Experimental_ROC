@@ -29,9 +29,9 @@ parse_args "$@"
 
 # Install pre-reqs.
 if [ ${ROCM_LOCAL_INSTALL} = false ] || [ ${ROCM_INSTALL_PREREQS} = true ]; then
-    echo "Installing software required to build the MIOpenGEMM."
+    echo "Installing software required to build ROC Thrust."
     echo "You will need to have root privileges to do this."
-    sudo pacman -Sy --noconfirm --needed base-devel cmake pkgconf git make
+    sudo pacman -Sy --noconfirm --needed base-devel cmake pkgconf git
     if [ ${ROCM_INSTALL_PREREQS} = true ] && [ ${ROCM_FORCE_GET_CODE} = false ]; then
         exit 0
     fi
@@ -40,8 +40,8 @@ fi
 # Set up source-code directory
 if [ $ROCM_SAVE_SOURCE = true ]; then
     SOURCE_DIR=${ROCM_SOURCE_DIR}
-    if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/MIOpenGEMM ]; then
-        rm -rf ${SOURCE_DIR}/MIOpenGEMM
+    if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/rocThrust ]; then
+        rm -rf ${SOURCE_DIR}/rocThrust
     fi
     mkdir -p ${SOURCE_DIR}
 else
@@ -49,70 +49,60 @@ else
 fi
 cd ${SOURCE_DIR}
 
-# Download MIOpenGEMM
-if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/MIOpenGEMM ]; then
-    git clone https://github.com/ROCmSoftwarePlatform/MIOpenGEMM.git
-    cd MIOpenGEMM
-    git checkout ${ROCM_MIOPENGEMM_CHECKOUT}
+# Download rocThrust
+if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/rocThrust ]; then
+    git clone --recursive https://github.com/ROCmSoftwarePlatform/rocThrust.git
+    cd rocThrust
+    git checkout ${ROCM_ROCTHRUST_CHECKOUT}
+    git submodule update
 else
-    echo "Skipping download of MIOpenGEMM, since ${SOURCE_DIR}/MIOpenGEMM already exists."
+    echo "Skipping download of HIP Thrust, since ${SOURCE_DIR}/rocThrust already exists."
 fi
 
 if [ ${ROCM_FORCE_GET_CODE} = true ]; then
-    echo "Finished downloading MIOpenGEMM. Exiting."
+    echo "Finished downloading rocThrust. Exiting."
     exit 0
 fi
 
-cd ${SOURCE_DIR}/MIOpenGEMM
+cd ${SOURCE_DIR}/rocThrust
+# cp ${SOURCE_DIR}/Thrust/postinst.orig ${SOURCE_DIR}/rocThrust/postinst
+# sed -i "s#ROCM_INSTALL_DIR#${ROCM_OUTPUT_DIR}#" ${SOURCE_DIR}/rocThrust/postinst
+# cp ${SOURCE_DIR}/Thrust/prerm.orig ${SOURCE_DIR}/rocThrust/prerm
+# sed -i "s#ROCM_INSTALL_DIR#${ROCM_OUTPUT_DIR}#" ${SOURCE_DIR}/rocThrust/prerm
 mkdir -p build
 cd build
-cmake -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DOPENCL_LIBRARIES=${ROCM_INPUT_DIR}/opencl/lib/x86_64/ -DOPENCL_INCLUDE_DIRS=${ROCM_INPUT_DIR}/opencl/include/ ..
-# Linking can take a large amount of memory, and it will fail if you do not
-# have enough memory available per thread. As such, this # logic limits the
-# number of build threads in response to the amount of available memory on
-# the system.
-MEM_AVAIL=`cat /proc/meminfo | grep MemTotal | awk {'print $2'}`
-AVAIL_THREADS=`nproc`
-
-# Give about 4 GB to each building thread
-MAX_THREADS=`echo $(( ${MEM_AVAIL} / $(( 1024 * 1024 * 4 )) ))`
-if [ ${MAX_THREADS} -lt ${AVAIL_THREADS} ]; then
-    NUM_BUILD_THREADS=${MAX_THREADS}
-else
-    NUM_BUILD_THREADS=${AVAIL_THREADS}
-fi
-if [ ${NUM_BUILD_THREADS} -lt 1 ]; then
-    NUM_BUILD_THREADS=1
-fi
-
-make -j ${NUM_BUILD_THREADS}
+HIP_PLATFORM=hcc cmake -DCMAKE_CXX_COMPILER=${ROCM_INPUT_DIR}/bin/hcc -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DBUILD_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DBUILD_VERSION_MINOR=${ROCM_VERSION_MINOR} -DBUILD_VERSION_PATCH=${ROCM_VERSION_PATCH} -DCPACK_DEBIAN_PACKAGE_CONTROL_EXTRA="${SOURCE_DIR}/rocThrust/postinst;${SOURCE_DIR}/rocThrust/prerm" ..
+make -j `nproc`
 
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then
-    echo "Finished building MIOpenGEMM. Exiting."
+    echo "Finished building rocALUTIONrocThrust. Exiting."
     exit 0
 fi
 
 if [ ${ROCM_FORCE_PACKAGE} = true ]; then
     echo "Sorry, packaging not yet implemented for this distribution"
     exit 2
+#     # Temporarily delete the bad symlink mentioned above
+#     BAD_SYMLINK_LOCATION=`find ${SOURCE_DIR}/rocThrust/ -name cub -type l`
+#     rm -f ${BAD_SYMLINK_LOCATION}
 #     make package
-#     echo "Copying `ls -1 miopengemm-*.deb` to ${ROCM_PACKAGE_DIR}"
+#     # Restore it so that any future 'make install' does not miss it.
+#     # We don't have postinst/prerm for 'make install', so the file does
+#     # need to exist.
+#     ln -sf cub-hip/cub ${BAD_SYMLINK_LOCATION}
+#     echo "Copying `ls -1 roc-thrust-*.deb` to ${ROCM_PACKAGE_DIR}"
 #     mkdir -p ${ROCM_PACKAGE_DIR}
-#     cp ./miopengemm-*.deb ${ROCM_PACKAGE_DIR}
+#     cp ./roc-thrust-*.deb ${ROCM_PACKAGE_DIR}
 #     if [ ${ROCM_LOCAL_INSTALL} = false ]; then
-#         ROCM_PKG_IS_INSTALLED=`dpkg -l miopengemm | grep '^.i' | wc -l`
+#         ROCM_PKG_IS_INSTALLED=`dpkg -l roc-thrust | grep '^.i' | wc -l`
 #         if [ ${ROCM_PKG_IS_INSTALLED} -gt 0 ]; then
-#             PKG_NAME=`dpkg -l miopengemm | grep '^.i' | awk '{print $2}'`
+#             PKG_NAME=`dpkg -l roc-thrust | grep '^.i' | awk '{print $2}'`
 #             sudo dpkg -r --force-depends ${PKG_NAME}
 #         fi
-#         sudo dpkg -i ./miopengemm-*.deb
+#         sudo dpkg -i ./roc-thrust-*.deb
 #     fi
 else
     ${ROCM_SUDO_COMMAND} make install
-
-    if [ ${ROCM_LOCAL_INSTALL} = false ]; then
-        echo ${ROCM_OUTPUT_DIR}/lib | ${ROCM_SUDO_COMMAND} tee -a /etc/ld.so.conf.d/miopengemm.conf
-    fi
 fi
 
 if [ $ROCM_SAVE_SOURCE = false ]; then

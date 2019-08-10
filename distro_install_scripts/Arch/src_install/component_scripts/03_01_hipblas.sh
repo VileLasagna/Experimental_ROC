@@ -64,11 +64,13 @@ if [ ${ROCM_FORCE_GET_CODE} = true ]; then
 fi
 
 cd ${SOURCE_DIR}/hipBLAS
-# manually editing a file until my PR(#78) gets merged and integrated into the next tag
-sed -i '/find_package( CUDA QUIET )/d' CMakeLists.txt
+# # manually editing a file until my PR(#78) gets merged and integrated into the next tag
+# sed -i '/find_package( CUDA QUIET )/d' CMakeLists.txt
+#sed -i 's/find_package( hcc/#find_package( hcc/' ./CMakeLists.txt
 mkdir -p build/release
 cd build/release
-cmake -DCMAKE_CXX_COMPILER=${ROCM_INPUT_DIR}/hcc/bin/hcc -DBUILD_VERBOSE=ON -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ ../..
+HIP_PLATFORM=hcc cmake -DCMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES=${ROCM_INPUT_DIR}/include -DCMAKE_PREFIX_PATH=${ROCM_INPUT_DIR} -DCMAKE_CXX_COMPILER=${ROCM_INPUT_DIR}/hcc/bin/hcc -DTRY_CUDA=OFF -DBUILD_VERBOSE=ON -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} -DCPACK_GENERATOR=DEB -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} ../..
+#cmake -DCMAKE_CXX_COMPILER=${ROCM_INPUT_DIR}/llvm/bin/clang -DTRY_CUDA=OFF -DBUILD_VERBOSE=ON -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ ../..
 make -j `nproc`
 
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then

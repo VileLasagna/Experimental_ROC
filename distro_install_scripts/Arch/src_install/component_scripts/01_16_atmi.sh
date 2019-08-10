@@ -109,7 +109,7 @@ if [ ! -d ${ROCM_INPUT_DIR}/llvm ]; then
         fi
 
         if [ ${ROCM_REBUILD_LLVM} = true ]; then
-            ${BASE_DIR}/01_11_rocm_device_libs.sh "$@"
+            ${BASE_DIR}/01_10_rocm_device_libs.sh "$@"
             ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm/
         else
             echo "Unable to continue the build of comgr."
@@ -134,7 +134,7 @@ if [ ! -d ${SOURCE_DIR}/atmi/src/build/temp_device_libs/ ] || [ ! -f ${SOURCE_DI
     cp -f ${ROCM_INPUT_DIR}/lib/*.bc ${SOURCE_DIR}/atmi/src/build/temp_device_libs/
     if [ ! -f ${SOURCE_DIR}/atmi/src/build/temp_device_libs/irif.amdgcn.bc ]; then
         if [ ! -d ${SOURCE_DIR}/ROCm-Device-Libs/ ] || [ $(find ${SOURCE_DIR}/ROCm-Device-Libs/ -name irif.amdgcn.bc | wc -l) -eq 0 ]; then
-            ${BASE_DIR}/01_11_rocm_device_libs.sh "$@" --build_only
+            ${BASE_DIR}/01_10_rocm_device_libs.sh "$@" --build_only
         fi
         cp -f $(find ${SOURCE_DIR}/ROCm-Device-Libs/ -name irif.amdgcn.bc) ${SOURCE_DIR}/atmi/src/build/temp_device_libs/
     fi

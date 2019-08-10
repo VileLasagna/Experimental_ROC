@@ -31,7 +31,7 @@ parse_args "$@"
 if [ ${ROCM_LOCAL_INSTALL} = false ] || [ ${ROCM_INSTALL_PREREQS} = true ]; then
     echo "Installing software required to build ROCm OpenCL."
     echo "You will need to have root privileges to do this."
-    sudo pacman -Sy --noconfirm --needed  git ocaml ocaml-findlib python2-z3 svn curl base-devel libglvnd cmake
+    sudo pacman -Sy --noconfirm --needed  git ocaml ocaml-findlib python-z3 svn curl base-devel libglvnd cmake
 
     if [ ! -f /usr/lib/libgtest.a ] || [ ! -f /usr/lib/libgtest_main.a ]; then
         # Install/Build a new-enough version of Gtest
@@ -105,8 +105,9 @@ fi
 
 # Build ROCm OpenCL runtime
 cd ${SOURCE_DIR}/OCL/opencl/
+#sed -i 's/add_subdirectory(compiler\/llvm EXCLUDE_FROM_ALL)/add_subdirectory(compiler\/llvm)/' ./CMakeLists.txt
 mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/opencl/ -DLLVM_USE_LINKER=gold -DCMAKE_LIBRARY_PATH=${ROCM_INPUT_DIR}/lib -DCMAKE_INCLUDE_PATH=${ROCM_INPUT_DIR}/include -DCMAKE_PREFIX_PATH=${ROCM_INPUT_DIR}/ -DCLANG_ANALYZER_ENABLE_Z3_SOLVER=OFF -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB ..
+cmake -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/opencl/ -DLLVM_USE_LINKER=gold -DLLVM_BUILD_TOOLS=ON -DLLD_BUILD_TOOLS=ON -DCMAKE_LIBRARY_PATH=${ROCM_INPUT_DIR}/lib -DCMAKE_INCLUDE_PATH=${ROCM_INPUT_DIR}/include -DCMAKE_PREFIX_PATH=${ROCM_INPUT_DIR}/ -DCLANG_ANALYZER_ENABLE_Z3_SOLVER=OFF -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB ..
 
 # Build the OpenCL runtime can take a large amount of memory, and it will
 # fail if you do not have enough memory available per thread. As such, this
@@ -126,7 +127,7 @@ if [ ${NUM_BUILD_THREADS} -lt 1 ]; then
     NUM_BUILD_THREADS=1
 fi
 
-make -j ${NUM_BUILD_THREADS}
+make -j ${NUM_BUILD_THREADS} lld all
 
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then
     echo "Finished building ROCm OpenCL runtime. Exiting."
@@ -239,8 +240,8 @@ else
     # Should have this in ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/:
     # bitcode  libamdocl64.so  libcltrace.so  libOpenCL.so  libOpenCL.so.1
     ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/bitcode/
-    ${ROCM_SUDO_COMMAND} cp ${ROCM_OUTPUT_DIR}/opencl/lib/*.bc ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/bitcode/
-    ${ROCM_SUDO_COMMAND} cp ${ROCM_OUTPUT_DIR}/opencl/lib/libOpenCL.so.1.2 ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/
+    # ${ROCM_SUDO_COMMAND} cp ${ROCM_OUTPUT_DIR}/opencl/lib/*.bc ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/bitcode/
+    # ${ROCM_SUDO_COMMAND} cp ${ROCM_OUTPUT_DIR}/opencl/lib/libOpenCL.so.1.2 ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/
     ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/libOpenCL.so.1.2 ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/libOpenCL.so.1
     ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/libOpenCL.so.1 ${ROCM_OUTPUT_DIR}/opencl/lib/x86_64/libOpenCL.so
     ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/opencl/lib/lib*
@@ -257,7 +258,7 @@ else
     ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/opencl/bin/x86_64/
     # missing llc, llvm-link, llvm-objdump opt, but these are not
     # needed for libOpenCL.so operation
-    for i in clang clang-[0-9] clinfo ld.lld lld; do ${ROCM_SUDO_COMMAND} mv ${ROCM_OUTPUT_DIR}/opencl/bin/$i ${ROCM_OUTPUT_DIR}/opencl/bin/x86_64/; done
+    for i in clang-[0-9] clinfo ld.lld lld; do if [ -e ${ROCM_OUTPUT_DIR}/opencl/bin/$i ]; then ${ROCM_SUDO_COMMAND} mv ${ROCM_OUTPUT_DIR}/opencl/bin/$i ${ROCM_OUTPUT_DIR}/opencl/bin/x86_64/; fi; done
     ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/opencl/bin/git-clang-format
     ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/opencl/bin/ld64.lld
     ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/opencl/bin/lld-link
@@ -269,14 +270,14 @@ else
     # CL  opencl-c.h
     #$ ls /opt/rocm/opencl/include/CL/
     #cl_ext.h  cl_gl_ext.h  cl_gl.h  cl.h  cl.hpp  cl_platform.h  opencl.h
-    ${ROCM_SUDO_COMMAND} cp -R ${ROCM_OUTPUT_DIR}/opencl/include/opencl2.2/ /tmp/
-    ${ROCM_SUDO_COMMAND} rm -rf ${ROCM_OUTPUT_DIR}/opencl/include/*
-    ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/opencl/include/CL/
-    ${ROCM_SUDO_COMMAND} cp -R /tmp/opencl2.2/CL/ ${ROCM_OUTPUT_DIR}/opencl/include/
+    ${ROCM_SUDO_COMMAND} cp -R ${ROCM_OUTPUT_DIR}/opencl/include/CL/ /tmp/
+    # ${ROCM_SUDO_COMMAND} rm -rf ${ROCM_OUTPUT_DIR}/opencl/include/*
+    # ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/opencl/include/CL/
+    ${ROCM_SUDO_COMMAND} cp -R /tmp/CL/ ${ROCM_OUTPUT_DIR}/opencl/include/
     ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/opencl/include/CL/cl_d3d*
     ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/opencl/include/CL/cl_dx9*
     ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/opencl/include/CL/cl2.hpp
-    ${ROCM_SUDO_COMMAND} rm -rf /tmp/opencl2.2/
+    ${ROCM_SUDO_COMMAND} rm -rf /tmp/CL/
 fi
 
 if [ $ROCM_SAVE_SOURCE = false ]; then

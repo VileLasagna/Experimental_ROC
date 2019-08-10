@@ -30,7 +30,7 @@ parse_args "$@"
 # Install pre-reqs. We might need build-essential, cmake, and git if nobody
 # ran the higher-level build scripts.
 if [ ${ROCM_LOCAL_INSTALL} = false ] || [ ${ROCM_INSTALL_PREREQS} = true ]; then
-    echo "Installing software required to build rocminfo."
+    echo "Installing software required to build the ROCm Bandwidth Test."
     echo "You will need to have root privileges to do this."
     sudo pacman -Sy --noconfirm --needed base-devel cmake pkgconf git
     if [ ${ROCM_INSTALL_PREREQS} = true ] && [ ${ROCM_FORCE_GET_CODE} = false ]; then
@@ -41,8 +41,8 @@ fi
 # Set up source-code directory
 if [ $ROCM_SAVE_SOURCE = true ]; then
     SOURCE_DIR=${ROCM_SOURCE_DIR}
-    if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/rocminfo ]; then
-        rm -rf ${SOURCE_DIR}/rocminfo
+    if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/rocm_bandwidth_test ]; then
+        rm -rf ${SOURCE_DIR}/rocm_bandwidth_test
     fi
     mkdir -p ${SOURCE_DIR}
 else
@@ -50,31 +50,36 @@ else
 fi
 cd ${SOURCE_DIR}
 
-# Download rocminfo
-if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/rocminfo ]; then
-    git clone https://github.com/RadeonOpenCompute/rocminfo.git
-    cd rocminfo
-    git checkout ${ROCM_ROCMINFO_CHECKOUT}
+# Download ROCm bandwidth test
+if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/rocm_bandwidth_test ]; then
+    git clone https://github.com/RadeonOpenCompute/rocm_bandwidth_test.git
+    cd rocm_bandwidth_test
+    git checkout ${ROCM_BANDWIDTH_TEST_CHECKOUT}
 else
-    echo "Skipping download of rocminfo, since ${SOURCE_DIR}/rocminfo already exists."
+    echo "Skipping download of ROCm Bandwidth Test, since ${SOURCE_DIR}/rocm_bandwidth_test already exists."
 fi
 
 if [ ${ROCM_FORCE_GET_CODE} = true ]; then
-    echo "Finished downloading rocminfo. Exiting."
+    echo "Finished downloading ROCm Bandwidth Test. Exiting."
     exit 0
 fi
 
-cd ${SOURCE_DIR}/rocminfo
+cd ${SOURCE_DIR}/rocm_bandwidth_test
+sed -i 's/-Wno-dev//' ./CMakeLists.txt
+# So this project explicitly sets all warnings as erros and then has
+# a function which compilers believe can reach the end with no return
+# (in reality it asserts out) but.. wow, guys, where's your CI again?
+# So we're doing some really rough emergency patching of this
+if [[ ! $(awk 'FNR==174' ./rocm_bandwidth_test_print.cpp | grep return) ]]; then
+    sed -i '174i       return "";' ./rocm_bandwidth_test_print.cpp
+fi;
 mkdir -p build
 cd build
-# There is no pacman cpack generator. It should(?) be possible to hook makepkg up to it through the external generator
-# but that feels like much more hassle than it's worth. Instead, I think I'll just write the PKGBUILD files later and
-# call the tool manually
-cmake .. -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB -DROCM_DIR=${ROCM_OUTPUT_DIR}
+cmake -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_PREFIX_PATH=${ROCM_INPUT_DIR} -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB ..
 make -j `nproc`
 
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then
-    echo "Finished building rocminfo. Exiting."
+    echo "Finished building ROCm Bandwidth Test. Exiting."
     exit 0
 fi
 
@@ -82,16 +87,16 @@ if [ ${ROCM_FORCE_PACKAGE} = true ]; then
     echo "Sorry, packaging not yet implemented for this distribution"
     exit 2
 #     make package
-#     echo "Copying `ls -1 rocminfo-*.deb` to ${ROCM_PACKAGE_DIR}"
+#     echo "Copying `ls -1 rocm_bandwidth_test-*.deb` to ${ROCM_PACKAGE_DIR}"
 #     mkdir -p ${ROCM_PACKAGE_DIR}
-#     cp rocminfo-*.deb ${ROCM_PACKAGE_DIR}
+#     cp ./rocm_bandwidth_test-*.deb ${ROCM_PACKAGE_DIR}
 #     if [ ${ROCM_LOCAL_INSTALL} = false ]; then
-#         ROCM_PKG_IS_INSTALLED=`dpkg -l rocminfo | grep '^.i' | wc -l`
+#         ROCM_PKG_IS_INSTALLED=`dpkg -l rocm_bandwidth_test | grep '^.i' | wc -l`
 #         if [ ${ROCM_PKG_IS_INSTALLED} -gt 0 ]; then
-#             PKG_NAME=`dpkg -l rocminfo | grep '^.i' | awk '{print $2}'`
+#             PKG_NAME=`dpkg -l rocm_bandwidth_test | grep '^.i' | awk '{print $2}'`
 #             sudo dpkg -r --force-depends ${PKG_NAME}
 #         fi
-#         sudo dpkg -i rocminfo-*.deb
+#         sudo dpkg -i ./rocm_bandwidth_test-*.deb
 #     fi
 else
     ${ROCM_SUDO_COMMAND} make install

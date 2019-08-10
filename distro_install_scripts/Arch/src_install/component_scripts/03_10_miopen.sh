@@ -77,7 +77,7 @@ cd build
 if [ ${MIOPEN_FORCE_OPENCL} = false ]; then
     CXX=${ROCM_INPUT_DIR}/hcc/bin/hcc cmake -DHALF_INCLUDE_DIR=${HALF_DIR}/include/ -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DMIOPEN_BACKEND=HIP -DCMAKE_PREFIX_PATH="${ROCM_INPUT_DIR}/hip/;${ROCM_INPUT_DIR}/hcc/;${ROCM_INPUT_DIR}/bin/;${ROCM_INPUT_DIR}" ..
 else
-    CXX=${ROCM_INPUT_DIR}/hcc/bin/hcc cmake -DHALF_INCLUDE_DIR=${HALF_DIR}/include/ -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DMIOPEN_BACKEND=OpenCL -DOPENCL_LIBRARIES=${ROCM_INPUT_DIR}/opencl/lib/x86_64/ -DOPENCL_INCLUDE_DIRS=${ROCM_INPUT_DIR}/opencl/include/ ..
+    CXX=${ROCM_INPUT_DIR}/hcc/bin/hcc cmake -DHALF_INCLUDE_DIR=${HALF_DIR}/include/ -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DMIOPEN_BACKEND=OpenCL -DCMAKE_PREFIX_PATH=${ROCM_INPUT_DIR}/opencl -DOPENCL_LIBRARIES=${ROCM_INPUT_DIR}/opencl/lib/x86_64/ -DOPENCL_INCLUDE_DIRS=${ROCM_INPUT_DIR}/opencl/include/ ..
 fi
 # Linking can take a large amount of memory, and it will fail if you do not
 # have enough memory available per thread. As such, this # logic limits the

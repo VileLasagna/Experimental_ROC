@@ -28,10 +28,6 @@ trap 'errno=$?; print_cmd=$lastcmd; if [ $errno -ne 0 ]; then echo "\"${print_cm
 source "$BASE_DIR/../common_options.sh"
 parse_args "$@"
 
-# For most scripts this would be in common_options.sh
-# This, however, being a new addition, I'm keeping it confined to the distro-specific part
-ROCM_ROCPRIM_CHECKOUT="2.3"
-
 # Install pre-reqs.
 if [ ${ROCM_LOCAL_INSTALL} = false ] || [ ${ROCM_INSTALL_PREREQS} = true ]; then
     echo "Installing software required to build the rocPRIM."

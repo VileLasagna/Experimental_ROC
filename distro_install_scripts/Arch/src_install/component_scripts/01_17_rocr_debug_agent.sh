@@ -32,7 +32,35 @@ parse_args "$@"
 if [ ${ROCM_LOCAL_INSTALL} = false ] || [ ${ROCM_INSTALL_PREREQS} = true ]; then
     echo "Installing software required to build the ROCr debug agent."
     echo "You will need to have root privileges to do this."
-    sudo pacman -Sy --noconfirm --needed base-devel cmake pkgconf git patch libelf
+    sudo pacman -Sy --noconfirm --needed base-devel cmake pkgconf git patch libelf curl lld
+
+    set +e
+    pacman -Q dtrace-utils-devel
+    PACMAN_HAS_DTRACE_DEVEL=$?
+    pacman -Q dtrace-utils
+    PACMAN_HAS_DTRACE=$?
+    pacman -Q systemtap
+    PACMAN_HAS_SYSTEMTAP=$?
+    pacman -Q systemtap-git
+    PACMAN_HAS_SYSTEMTAP_GIT=$?
+    set -e
+
+    if [ ! $PACMAN_HAS_DTRACE_DEVEL ]  ||  [ ! $PACMAN_HAS_DTRACE ];  then
+
+        if [ $PACMAN_HAS_SYSTEMTAP ] && [ $PACMAN_HAS_SYSTEMTAP_GIT ]; then
+            if [ ! -d ${ROCM_SOURCE_DIR}/aur ]; then mkdir ${ROCM_SOURCE_DIR}/aur; fi
+            ORIGINAL_DIR=$(pwd)
+            sudo pacman -Sy --noconfirm --needed avahi cpio elfutils nss python python-setuptools xmlto json-c nspr readline
+            cd ${ROCM_SOURCE_DIR}/aur
+            curl -O https://aur.archlinux.org/cgit/aur.git/snapshot/systemtap-git.tar.gz
+            tar -xf ./systemtap-git.tar.gz
+            cd systemtap-git
+            makepkg
+            sudo pacman -U --noconfirm $( ls *.tar.xz)
+            cd ${ORIGINAL_DIR}
+        fi
+    fi
+
     if [ ${ROCM_INSTALL_PREREQS} = true ] && [ ${ROCM_FORCE_GET_CODE} = false ]; then
         exit 0
     fi
@@ -56,12 +84,12 @@ if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/rocr_debug_agent ];
     cd ${SOURCE_DIR}/rocr_debug_agent/
     git checkout ${ROCR_DEBUG_AGENT_CHECKOUT}
 
-    # The debug agent in ROCm 2.0.0 does not build with GCC 8.
-    # If we have that, patch the problem out.
-    GCC_VERSION=`gcc --version | head -n 1 | awk '{print $NF}' | awk -F "." '{print $1}'`
-    if [ ${GCC_VERSION} -ge 8 ]; then
-        patch -p 1 < ${BASE_DIR}/patches/01_14_rocr_debug_agent.patch
-    fi
+    # # The debug agent in ROCm 2.0.0 does not build with GCC 8.
+    # # If we have that, patch the problem out.
+    # GCC_VERSION=`gcc --version | head -n 1 | awk '{print $NF}' | awk -F "." '{print $1}'`
+    # if [ ${GCC_VERSION} -ge 8 ]; then
+    #     patch -p 1 < ${BASE_DIR}/patches/01_14_rocr_debug_agent.patch
+    # fi
 else
     echo "Skipping download of ROCr debug agent, since ${SOURCE_DIR}/rocr_debug_agent already exists."
 fi

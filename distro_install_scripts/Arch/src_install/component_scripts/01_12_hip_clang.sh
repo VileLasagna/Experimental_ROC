@@ -41,8 +41,8 @@ fi
 # Set up source-code directory
 if [ $ROCM_SAVE_SOURCE = true ]; then
     SOURCE_DIR=${ROCM_SOURCE_DIR}
-    if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/HIP ]; then
-        rm -rf ${SOURCE_DIR}/HIP
+    if [ ${ROCM_FORCE_GET_CODE} = true ] && [ -d ${SOURCE_DIR}/HIP-CLANG ]; then
+        rm -rf ${SOURCE_DIR}/HIP-CLANG
     fi
     mkdir -p ${SOURCE_DIR}
 else
@@ -51,12 +51,12 @@ fi
 cd ${SOURCE_DIR}
 
 # Download HIP
-if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/HIP ]; then
-    git clone -b ${ROCM_VERSION_BRANCH} https://github.com/ROCm-Developer-Tools/HIP.git
-    cd HIP
+if [ ${ROCM_FORCE_GET_CODE} = true ] || [ ! -d ${SOURCE_DIR}/HIP-CLANG ]; then
+    git clone -b ${ROCM_VERSION_BRANCH} https://github.com/ROCm-Developer-Tools/HIP.git HIP-CLANG
+    cd HIP-CLANG
     git checkout ${ROCM_HIP_CHECKOUT}
 else
-    echo "Skipping download of HIP, since ${SOURCE_DIR}/HIP already exists."
+    echo "Skipping download of HIP, since ${SOURCE_DIR}/HIP-CLANG already exists."
 fi
 
 if [ ${ROCM_FORCE_GET_CODE} = true ]; then
@@ -64,14 +64,14 @@ if [ ${ROCM_FORCE_GET_CODE} = true ]; then
     exit 0
 fi
 
-cd ${SOURCE_DIR}/HIP
+cd ${SOURCE_DIR}/HIP-CLANG
 mkdir -p build
 cd build
-cmake .. -DHIP_PLATFORM=hcc -DHCC_HOME=${ROCM_INPUT_DIR}/hcc/ -DHSA_PATH=${ROCM_INPUT_DIR} -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/hip/ -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB
+cmake .. -DHIP_PLATFORM=clang -DHIP_COMPILER=clang -DBUILD_HIPIFY_CLANG=ON -DHCC_HOME=${ROCM_INPUT_DIR}/hcc/ -DHSA_PATH=${ROCM_INPUT_DIR} -DCMAKE_PREFIX_PATH=${ROCM_INPUT_DIR} -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/hip-clang/ -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB
 make -j `nproc`
 
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then
-    echo "Finished building HIP. Exiting."
+    echo "Finished building HIP-CLANG. Exiting."
     exit 0
 fi
 
@@ -99,21 +99,28 @@ else
 
     # Fix up files into the locations they s/hcc/hould be installed into
     ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/bin/
-    ${ROCM_SUDO_COMMAND} bash -c 'for i in .hipVersion ca findcode.sh finduncodep.sh hipcc hipcc_cmake_linker_helper hipconfig hipconvertinplace-perl.sh hipconvertinplace.sh hipdemangleatp hipexamine-perl.sh hipexamine.sh hipify-cmakefile hipify-perl lpl; do ln -sf '"${ROCM_OUTPUT_DIR}"'/hip/bin/${i} '"${ROCM_OUTPUT_DIR}"'/bin/${i}; done'
-    ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/hip/bin/.hipVersion ${ROCM_OUTPUT_DIR}/bin/.hipVersion
+    ${ROCM_SUDO_COMMAND} bash -c 'for i in .hipVersion ca findcode.sh finduncodep.sh hipcc hipcc_cmake_linker_helper hipconfig hipconvertinplace-perl.sh hipconvertinplace.sh hipdemangleatp hipexamine-perl.sh hipexamine.sh hipify-cmakefile hipify-perl lpl; do ln -sf '"${ROCM_OUTPUT_DIR}"'/hip-clang/bin/${i} '"${ROCM_OUTPUT_DIR}"'/bin/${i}; done'
+    ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/hip-clang/bin/.hipVersion ${ROCM_OUTPUT_DIR}/bin/.hipVersion
     ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/include/
+    if [ ! -d  ${ROCM_OUTPUT_DIR}/include/hip-clang ]; then
+        ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/hip-clang/include/hip ${ROCM_OUTPUT_DIR}/include/hip-clang
+    fi
+    #Make the "default" symlink
     if [ ! -d  ${ROCM_OUTPUT_DIR}/include/hip ]; then
-        ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/hip/include/hip ${ROCM_OUTPUT_DIR}/include/hip
+        ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/hip-clang/include/hip ${ROCM_OUTPUT_DIR}/include/hip
+    fi
+    if [ ! -d  ${ROCM_OUTPUT_DIR}/hip ]; then
+        ${ROCM_SUDO_COMMAND} ln -sf ${ROCM_OUTPUT_DIR}/hip-clang ${ROCM_OUTPUT_DIR}/hip
     fi
     ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/lib/
-    ${ROCM_SUDO_COMMAND} bash -c 'for i in .hipInfo hip_hc.ll libhip_device.a libhip_hcc.so libhip_hcc_static.a; do ln -sf '"${ROCM_OUTPUT_DIR}"'/hip/lib/${i} '"${ROCM_OUTPUT_DIR}"'/lib/${i}; done'
-    ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/hip/lib/cmake/hip/
-    sed -i 's#/opt/rocm/#'${ROCM_OUTPUT_DIR}/'#' ${SOURCE_DIR}/HIP/packaging/hip-targets.cmake
-    sed -i 's#/opt/rocm/#'${ROCM_OUTPUT_DIR}/'#' ${SOURCE_DIR}/HIP/packaging/hip-targets-release.cmake
-    ${ROCM_SUDO_COMMAND} cp -f ${SOURCE_DIR}/HIP/packaging/*.cmake ${ROCM_OUTPUT_DIR}/hip/lib/cmake/hip/
+    ${ROCM_SUDO_COMMAND} bash -c 'for i in .hipInfo hip_hc.ll libhip_device.a libhip_hcc.so libhip_hcc_static.a; do ln -sf '"${ROCM_OUTPUT_DIR}"'/hip-clang/lib/${i} '"${ROCM_OUTPUT_DIR}"'/lib/${i}; done'
+    ${ROCM_SUDO_COMMAND} mkdir -p ${ROCM_OUTPUT_DIR}/hip-clang/lib/cmake/hip/
+    sed -i 's#/opt/rocm/hip/#'${ROCM_OUTPUT_DIR}/hip-clang/'#' ${SOURCE_DIR}/HIP-CLANG/packaging/hip-targets.cmake
+    sed -i 's#/opt/rocm/hip/#'${ROCM_OUTPUT_DIR}/hip-clang/'#' ${SOURCE_DIR}/HIP-CLANG/packaging/hip-targets-release.cmake
+    ${ROCM_SUDO_COMMAND} cp -f ${SOURCE_DIR}/HIP-CLANG/packaging/*.cmake ${ROCM_OUTPUT_DIR}/hip-clang/lib/cmake/hip/
 
     # hip_samples packages:
-    ${ROCM_SUDO_COMMAND} cp -R ${SOURCE_DIR}/HIP/samples ${ROCM_OUTPUT_DIR}/hip/
+    ${ROCM_SUDO_COMMAND} cp -R ${SOURCE_DIR}/HIP-CLANG/samples ${ROCM_OUTPUT_DIR}/hip-clang/
 fi
 
 if [ $ROCM_SAVE_SOURCE = false ]; then

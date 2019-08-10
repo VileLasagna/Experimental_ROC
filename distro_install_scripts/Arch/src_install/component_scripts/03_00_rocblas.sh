@@ -64,11 +64,10 @@ if [ ${ROCM_FORCE_GET_CODE} = true ]; then
 fi
 
 cd ${SOURCE_DIR}/rocBLAS
-# manually editing a file until my PR(#500) gets merged and integrated into the next tag
-sed -i 's/find_program(VIRTUALENV_PYTHON_EXE python)/find_program(VIRTUALENV_PYTHON_EXE python2)/' ./cmake/virtualenv.cmake
+#sed -i 's/find_package( hcc REQUIRED/#find_package( hcc REQUIRED/' ./library/src/CMakeLists.txt
 mkdir -p build/release
 cd build/release
-CXX=${ROCM_INPUT_DIR}/hcc/bin/hcc cmake -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ ../..
+CXX=${ROCM_INPUT_DIR}/bin/hcc cmake -DCMAKE_CXX_COMPILER=${ROCM_INPUT_DIR}/bin/hcc -DCMAKE_PREFIX_PATH=${ROCM_INPUT_DIR}/lib  -DCMAKE_VERBOSE_MAKEFILE=ON -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ ../..
 # Linking can take a large amount of memory, and it will fail if you do not
 # have enough memory available per thread. As such, this # logic limits the
 # number of build threads in response to the amount of available memory on
@@ -76,8 +75,8 @@ CXX=${ROCM_INPUT_DIR}/hcc/bin/hcc cmake -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_
 MEM_AVAIL=`cat /proc/meminfo | grep MemTotal | awk {'print $2'}`
 AVAIL_THREADS=`nproc`
 
-# Give about 4 GB to each building thread
-MAX_THREADS=`echo $(( ${MEM_AVAIL} / $(( 1024 * 1024 * 4 )) ))`
+# Give about 2 GB to each building thread
+MAX_THREADS=`echo $(( ${MEM_AVAIL} / $(( 1024 * 1024 * 2 )) ))`
 if [ ${MAX_THREADS} -lt ${AVAIL_THREADS} ]; then
     NUM_BUILD_THREADS=${MAX_THREADS}
 else

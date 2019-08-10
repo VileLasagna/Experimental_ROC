@@ -103,6 +103,8 @@ else
     ${ROCM_SUDO_COMMAND} bash -c "for i in bin include lib; do cp -fR ${ROCM_OUTPUT_DIR}/rocprofiler/${i}/* ${ROCM_OUTPUT_DIR}/${i}/; done"
     ${ROCM_SUDO_COMMAND} cp -fR ${ROCM_OUTPUT_DIR}/rocprofiler/tool ${ROCM_OUTPUT_DIR}
     ${ROCM_SUDO_COMMAND} rm -rf ${ROCM_OUTPUT_DIR}/rocprofiler
+    #This install leaves a broken symlink behind
+    if [ -L  ${ROCM_OUTPUT_DIR}/include/rocprofiler ] && [ ! -e  ${ROCM_OUTPUT_DIR}/include/rocprofiler ]; then ${ROCM_SUDO_COMMAND} rm -f ${ROCM_OUTPUT_DIR}/include/rocprofiler; fi
 fi
 
 if [ $ROCM_SAVE_SOURCE = false ]; then
