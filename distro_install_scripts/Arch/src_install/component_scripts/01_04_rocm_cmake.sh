@@ -71,7 +71,7 @@ cd build
 # There is no pacman cpack generator. It should(?) be possible to hook makepkg up to it through the external generator
 # but that feels like much more hassle than it's worth. Instead, I think I'll just write the PKGBUILD files later and
 # call the tool manually
-cmake .. -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB
+cmake .. -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} -DCPACK_GENERATOR=DEB
 
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then
     echo "Nothing to build for rocm-cmake. Exiting."

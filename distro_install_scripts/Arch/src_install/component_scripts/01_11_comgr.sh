@@ -56,14 +56,14 @@ cd ${SOURCE_DIR}
 # the user just build LLVM before calling this script. IF they have not,
 # we ask them if they would like to build LLVM first. If they do not, then
 # this script will not work and we fail.
-ROCM_LLVM_DIR=${ROCM_INPUT_DIR}/llvm/
+ROCM_LLVM_DIR=${ROCM_INPUT_DIR}/llvm
 if [ ! -d ${ROCM_INPUT_DIR}/llvm ]; then
     if [ -d ${ROCM_OUTPUT_DIR}/llvm ]; then
-        ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm/
+        ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm
     elif [ -d ${SOURCE_DIR}/llvm ]; then
-        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm/
+        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm
     elif [ -d ${SOURCE_DIR}/llvm_temp_install ]; then
-        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm_temp_install/
+        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm_temp_install
     else
         ROCM_REBUILD_LLVM=false
         echo ""
@@ -95,8 +95,8 @@ if [ ! -d ${ROCM_INPUT_DIR}/llvm ]; then
         fi
 
         if [ ${ROCM_REBUILD_LLVM} = true ]; then
-            ${BASE_DIR}/01_12_rocm_device_libs.sh "$@"
-            ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm/
+            ${BASE_DIR}/01_10_rocm_device_libs.sh "$@"
+            ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm
         else
             echo "Unable to continue the build of comgr."
             exit 1
@@ -122,7 +122,7 @@ cd ${SOURCE_DIR}/ROCm-CompilerSupport
 cd lib/comgr/
 mkdir -p build
 cd build
-cmake -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_PREFIX_PATH="${ROCM_LLVM_DIR};${ROCM_INPUT_DIR}/lib" -DLLVM_DIR=${ROCM_LLVM_DIR} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB ..
+cmake -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DCMAKE_PREFIX_PATH="${ROCM_LLVM_DIR};${ROCM_INPUT_DIR}/lib" -DLLVM_DIR=${ROCM_LLVM_DIR} -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} -DCPACK_GENERATOR=DEB ..
 make -j `nproc`
 
 if [ ${ROCM_FORCE_BUILD_ONLY} = true ]; then

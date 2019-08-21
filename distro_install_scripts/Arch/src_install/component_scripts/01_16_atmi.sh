@@ -73,11 +73,11 @@ fi
 ROCM_LLVM_DIR=${ROCM_INPUT_DIR}/llvm/
 if [ ! -d ${ROCM_INPUT_DIR}/llvm ]; then
     if [ -d ${ROCM_OUTPUT_DIR}/llvm ]; then
-        ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm/
+        ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm
     elif [ -d ${SOURCE_DIR}/llvm ]; then
-        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm/
+        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm
     elif [ -d ${SOURCE_DIR}/llvm_temp_install ]; then
-        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm_temp_install/
+        ROCM_LLVM_DIR=${SOURCE_DIR}/llvm_temp_install
     else
         ROCM_REBUILD_LLVM=false
         echo ""
@@ -110,9 +110,9 @@ if [ ! -d ${ROCM_INPUT_DIR}/llvm ]; then
 
         if [ ${ROCM_REBUILD_LLVM} = true ]; then
             ${BASE_DIR}/01_10_rocm_device_libs.sh "$@"
-            ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm/
+            ROCM_LLVM_DIR=${ROCM_OUTPUT_DIR}/llvm
         else
-            echo "Unable to continue the build of comgr."
+            echo "Unable to continue the build of atmi."
             exit 1
         fi
     fi
@@ -143,7 +143,7 @@ if [ ! -d ${SOURCE_DIR}/atmi/src/build/temp_device_libs/ ] || [ ! -f ${SOURCE_DI
     # We have to change it.
     sed -i 's#${ROCM_DEVICE_PATH}/lib/#'${SOURCE_DIR}/atmi/src/build/temp_device_libs/'#' ${SOURCE_DIR}/atmi/src/device_runtime/bc.cmake
 fi
-cmake -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/atmi -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DLLVM_DIR=${ROCM_LLVM_DIR} -DDEVICE_LIB_DIR=${SOURCE_DIR}/atmi/src/build/temp_device_libs/ -DHSA_DIR=${ROCM_INPUT_DIR}/ -DATMI_HSA_INTEROP=ON -DATMI_DEVICE_RUNTIME=ON -DATMI_C_EXTENSION=OFF -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/ -DCPACK_GENERATOR=DEB ..
+cmake -DCMAKE_INSTALL_PREFIX=${ROCM_OUTPUT_DIR}/atmi -DCMAKE_BUILD_TYPE=${ROCM_CMAKE_BUILD_TYPE} -DLLVM_DIR=${ROCM_LLVM_DIR} -DDEVICE_LIB_DIR=${SOURCE_DIR}/atmi/src/build/temp_device_libs -DHSA_DIR=${ROCM_INPUT_DIR} -DATMI_HSA_INTEROP=ON -DATMI_DEVICE_RUNTIME=ON -DATMI_C_EXTENSION=OFF -DCPACK_PACKAGING_INSTALL_PREFIX=${ROCM_OUTPUT_DIR} -DCPACK_GENERATOR=DEB ..
 
 make -j `nproc`
 
